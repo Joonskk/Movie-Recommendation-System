@@ -31,7 +31,7 @@ A robust, memory-efficient movie recommendation pipeline built with Python, leve
 ### 2. Bayesian Average Implementation
 Applied statistical smoothing using the formula:
 $$\text{Bayesian Average} = \frac{C \cdot m + \sum(x)}{C + n}$$
-*(where $C$ is the average dataset size per movie, $m$ is the global average rating, and $n$ is the review count).*
+*(where C is the average dataset size per movie, m is the global average rating, and n is the review count).*
 
 ### 3. Utility Matrix & Collaborative Filtering Prep
 * Constructed a high-dimensional sparse user-item matrix ($200,948 \times 84,432$) to set the foundation for neighborhood or latent-factor collaborative filtering.
@@ -43,4 +43,4 @@ $$\text{Bayesian Average} = \frac{C \cdot m + \sum(x)}{C + n}$$
 ### Prerequisites
 Make sure you have Python and JupyterLab installed along with the required libraries:
 ```bash
-pip install pandas numpy scipy matplotlib seaborn
+pip install pandas scikit-learn jupyter matplotlib seaborn fastapi uvicorn

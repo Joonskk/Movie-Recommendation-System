@@ -1,46 +1,57 @@
-# 🎬 Large-Scale Movie Recommendation System
+# Movie Recommendation System
 
-A robust, memory-efficient movie recommendation pipeline built with Python, leveraging **Collaborative Filtering**, **Sparse Matrix Architecture (`SciPy csr_array`)**, and **Bayesian Average Statistical Smoothing** to process over 3.2M+ user ratings.
+[![tests](https://github.com/Joonskk/Movie-Recommendation-System/actions/workflows/test.yml/badge.svg)](https://github.com/Joonskk/Movie-Recommendation-System/actions/workflows/test.yml)
 
----
+Item-to-item movie recommendations on the [MovieLens 32M](https://grouplens.org/datasets/movielens/32m/) dataset: 32,000,204 ratings from 200,948 users on 84,432 movies. Pick a movie and it returns the movies whose ratings follow the same pattern.
 
-## 🚀 Key Features
+The notebook goes from raw ratings to recommendations in four steps: explore the data, rank movies fairly, build a sparse user-item matrix, and find similar movies with cosine similarity.
 
-* **Large-Scale Data Processing:** Engineered data pipelines to efficiently parse and analyze over **32 million ratings** across 200,000+ users and 84,000+ movies using Pandas and NumPy.
-* **Memory-Optimized Sparse Matrix Architecture:** Implemented custom ID mapping dictionaries (`user_mapper`, `movie_mapper`) and converted utility matrices into **SciPy Compressed Sparse Row (`csr_array`)** format, achieving an extreme matrix sparsity of **0.19%** to minimize memory overhead.
-* **Advanced Statistical Ranking (Bayesian Average):** Resolved ranking distortions caused by low-frequency ratings by implementing a Bayesian Average smoothing formula, accurately surfacing critically acclaimed titles over items with single skewed ratings.
-* **Vectorized Data Aggregation:** Utilized NumPy vectorized operations (`np.diff` on index pointers) for high-performance retrieval and traversal of user-item interactions.
+## What's inside
 
----
+| File | What it does |
+| --- | --- |
+| `main.ipynb` | Exploration, Bayesian-average ranking, the sparse matrix, and example recommendations |
+| `recommender.py` | `create_X` builds the sparse matrix; `ItemRecommender` finds similar movies |
+| `test_recommender.py` | pytest tests on a small hand-made dataset |
 
-## 🛠️ Tech Stack
+## How it works
 
-* **Language:** Python 3.x
-* **Data Manipulation & Analysis:** `pandas`, `NumPy`, `SciPy` (`csr_array`)
-* **Data Visualization:** `Matplotlib`, `Seaborn`
-* **Environment:** JupyterLab
+**1. Exploration.** On average a user rated 159 movies and a movie got 379 ratings, but the spread is huge. *The Shawshank Redemption* has 102,929 ratings, while thousands of movies have one.
 
----
+**2. Fair ranking with a Bayesian average.** Sorting by mean rating puts *Always a Bridesmaid (2000)* first, with a single 5-star rating. The Bayesian average pulls each movie's mean toward the global mean until it has enough ratings to stand on its own:
 
-## 📊 Methodology & Implementation
+$$\text{Bayesian average} = \frac{C \cdot m + \sum x}{C + n}$$
 
-### 1. Exploratory Data Analysis (EDA)
-* Analyzed global rating distributions, average user engagement, and movie frequency.
-* Discovered raw rating anomalies (e.g., films with a 5.0 average driven by only a single review).
+where *C* is the average number of ratings per movie (379), *m* is the average movie rating (3.01), and *n* is the movie's own rating count. With it, *Shawshank*, *The Godfather* and *Planet Earth* come out on top.
 
-### 2. Bayesian Average Implementation
-Applied statistical smoothing using the formula:
-$$\text{Bayesian Average} = \frac{C \cdot m + \sum(x)}{C + n}$$
-*(where C is the average dataset size per movie, m is the global average rating, and n is the review count).*
+**3. Sparse user-item matrix.** Ratings go into a 200,948 × 84,432 matrix with one row per user and one column per movie. Only 0.19% of the cells hold a rating, so it's stored as a SciPy CSR array, which keeps just the 32M ratings and not the 17 billion empty cells. Mapper dictionaries translate between MovieLens ids and matrix rows and columns.
 
-### 3. Utility Matrix & Collaborative Filtering Prep
-* Constructed a high-dimensional sparse user-item matrix ($200,948 \times 84,432$) to set the foundation for neighborhood or latent-factor collaborative filtering.
+**4. Item-to-item recommendations.** Each movie is a column of ratings. `ItemRecommender`:
+- subtracts each user's mean rating, so a harsh rater's 3.0 and a generous rater's 4.5 both count as "liked it",
+- finds the nearest movies by cosine similarity with scikit-learn's `NearestNeighbors`, directly on the sparse matrix,
+- skips movies with fewer than 50 ratings, which would otherwise look identical to almost anything.
 
----
+```python
+from recommender import ItemRecommender, titles
 
-## 💻 Getting Started
+rec = ItemRecommender(X, movie_mapper, movie_inv_mapper)
+titles(rec.similar(movie_id=1, k=10), movies)   # movies similar to Toy Story (1995)
+```
 
-### Prerequisites
-Make sure you have Python and JupyterLab installed along with the required libraries:
+## Run it
+
+1. Download [MovieLens 32M](https://grouplens.org/datasets/movielens/32m/) and put `ratings.csv` and `movies.csv` in a `data/` folder. The dataset isn't in the repo because it's about 900 MB unzipped.
+2. Install and open the notebook:
+
 ```bash
-pip install pandas scikit-learn jupyter matplotlib seaborn fastapi uvicorn
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+jupyter lab main.ipynb
+```
+
+Run the tests with `pytest`. They use a small hand-made dataset, so they don't need the download.
+
+## Next steps
+
+- Evaluate the recommendations offline: hold out each user's last ratings and measure precision@k.
+- Compare with a latent-factor model (matrix factorization with truncated SVD or ALS).
